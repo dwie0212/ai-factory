@@ -18,8 +18,6 @@ export interface Recommendation {
 }
 
 export async function getAiRecommendation(context: ContextData): Promise<{ recommendations: Recommendation[]; summary: string }> {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
-
   const deadline = new Date(context.affectedOrder.deadline)
   const hoursLeft = Math.round((deadline.getTime() - Date.now()) / 3600000)
   const availableEngineers = context.engineers.filter(e => e.available)
@@ -70,32 +68,17 @@ ${availableEngineers.map(e => `- ${e.name}: ${e.specialty}, 교대 종료 ${Math
 }`
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('/api/recommend', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-calls': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
     })
 
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`)
     }
 
-    const data = await response.json()
-    const text = data.content[0].text
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0])
-    }
-    throw new Error('JSON parse failed')
+    return await response.json()
   } catch (err) {
     console.error('Claude API error:', err)
     // Fallback mock recommendations
